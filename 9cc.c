@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
   token = tokenize(argv[1]);
 
   printf(".intel_syntax noprefix\n");
-  printf(".global main\n");
+  printf(".globl main\n");
   printf("main:\n");
 
   // 式の最初は数であることをチェック
