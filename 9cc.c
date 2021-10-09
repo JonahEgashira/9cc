@@ -7,25 +7,24 @@
 
 // Token types
 typedef enum {
-  TK_RESERVED,  // 記号
-  TK_NUM,       // 整数トークン
-  TK_EOF,       // 入力の終わり
+  TK_RESERVED,  // Keywords
+  TK_NUM,       // Integer literals
+  TK_EOF,       // End-of-file marker
 } TokenKind;
 
 typedef struct Token Token;
 
 struct Token {
-  TokenKind kind;  // トークンの型
-  Token *next;     // 次の入力トークン
-  int val;         // kindがTK_NUMの場合、その数値
-  char *str;       // トークン文字列
+  TokenKind kind;  // Token kind
+  Token *next;     // Next token
+  int val;         // If kind is TK_NUM, its value
+  char *str;       // Token string
 };
 
-// 現在着目しているトークン
+// Current token
 Token *token;
 
-// エラー報告関数
-// printfと同じ引数を取る
+// Reports an error and exit
 void error(char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -34,7 +33,7 @@ void error(char *fmt, ...) {
   exit(1);
 }
 
-// 次のトークンが期待している記号の時はトークンを1つ読み進めてtrueを返す
+// Consumes the current token if it matches 'op'
 bool consume(char op) {
   if (token->kind != TK_RESERVED || token->str[0] != op)
     return false;
@@ -42,19 +41,17 @@ bool consume(char op) {
   return true;
 }
 
-// 次のトークンが期待している記号の時には、トークンを1つ読み進める。
-// それ以外はエラーを報告
+// Ensure that the current token is 'op'
 void expect(char op) {
   if (token->kind != TK_RESERVED || token->str[0] != op)
-    error("'%c'ではありません", op);
+    error("expected '%c'", op);
   token = token->next;
 }
 
-// 次のトークンが数値の時には、トークンを1つ読み進めてその数値を返す。
-// それ以外はエラーを報告
+// Ensure that the current token is TK_NUM
 int expect_number() {
   if (token->kind != TK_NUM)
-    error("数ではありません");
+    error("expected a number");
   int val = token->val;
   token = token->next;
   return val;
@@ -64,7 +61,7 @@ bool at_eof() {
   return token->kind == TK_EOF;
 }
 
-// 新しいトークンを作成してcurにつなげる
+// Create a new token and add it as the next token of 'cur'
 Token *new_token(TokenKind kind, Token *cur, char *str) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
@@ -73,14 +70,14 @@ Token *new_token(TokenKind kind, Token *cur, char *str) {
   return tok;
 }
 
-// 入力文字列pをトークナイズしてそれを返す
+// Tokenize 'p' and returns new tokens
 Token *tokenize(char *p) {
   Token head;
   head.next = NULL;
   Token *cur = &head;
 
   while (*p) {
-    // 空白をスキップ
+    // Skip whitespace
     if (isspace(*p)) {
       p++;
       continue;
@@ -97,7 +94,7 @@ Token *tokenize(char *p) {
       continue;
     }
 
-    error("トークナイズできません");
+    error("invalid token");
   }
 
   new_token(TK_EOF, cur, p);
@@ -116,7 +113,7 @@ int main(int argc, char **argv) {
   printf(".globl main\n");
   printf("main:\n");
 
-  // 式の最初は数であることをチェック
+  // The first token must be a number
   printf("  mov rax, %d\n", expect_number());
 
   while (!at_eof()) {
