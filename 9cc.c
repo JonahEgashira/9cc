@@ -12,7 +12,40 @@ typedef enum {
   TK_EOF,       // End-of-file marker
 } TokenKind;
 
+// Node kind of Abstract syntax tree
+typedef enum {
+  ND_ADD,  // +
+  ND_SUB,  // -
+  ND_MUL,  // *
+  ND_DIV,  // /
+  ND_NUM,  // Integer
+} NodeKind;
+
+typedef struct Node Node;
+
 typedef struct Token Token;
+
+struct Node {
+  NodeKind kind;  // kind of node
+  Node *lhs;      // left hand side
+  Node *rhs;      // right hand side
+  int val;        // if kind is ND_NUM
+};
+
+Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = kind;
+  node->lhs = lhs;
+  node->rhs = rhs;
+  return node;
+}
+
+Node *new_node_num(int val) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = ND_NUM;
+  node->val = val;
+  return node;
+}
 
 struct Token {
   TokenKind kind;  // Token kind
