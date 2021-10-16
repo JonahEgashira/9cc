@@ -32,6 +32,13 @@ struct Node {
   int val;        // if kind is ND_NUM
 };
 
+struct Token {
+  TokenKind kind;  // Token kind
+  Token *next;     // Next token
+  int val;         // If kind is TK_NUM, its value
+  char *str;       // Token string
+};
+
 Node *new_node(NodeKind kind) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
@@ -49,6 +56,27 @@ Node *new_num(int val) {
   Node *node = new_node(ND_NUM);
   node->val = val;
   return node;
+}
+
+// Current token
+Token *token;
+
+// Input program
+char *user_input;
+
+// Consumes the current token if it matches 'op'
+bool consume(char op) {
+  if (token->kind != TK_RESERVED || token->str[0] != op)
+    return false;
+  token = token->next;
+  return true;
+}
+
+// Ensure that the current token is 'op'
+void expect(char op) {
+  if (token->kind != TK_RESERVED || token->str[0] != op)
+    error_at(token->str, "expected '%c'", op);
+  token = token->next;
 }
 
 Node *expr();
@@ -131,19 +159,6 @@ void gen(Node *node) {
   printf("  push rax\n");
 }
 
-struct Token {
-  TokenKind kind;  // Token kind
-  Token *next;     // Next token
-  int val;         // If kind is TK_NUM, its value
-  char *str;       // Token string
-};
-
-// Current token
-Token *token;
-
-// Input program
-char *user_input;
-
 // Reports an error location and exit
 void error_at(char *loc, char *fmt, ...) {
   va_list ap;
@@ -165,21 +180,6 @@ void error(char *fmt, ...) {
   vfprintf(stderr, fmt, ap);
   fprintf(stderr, "\n");
   exit(1);
-}
-
-// Consumes the current token if it matches 'op'
-bool consume(char op) {
-  if (token->kind != TK_RESERVED || token->str[0] != op)
-    return false;
-  token = token->next;
-  return true;
-}
-
-// Ensure that the current token is 'op'
-void expect(char op) {
-  if (token->kind != TK_RESERVED || token->str[0] != op)
-    error_at(token->str, "expected '%c'", op);
-  token = token->next;
 }
 
 // Ensure that the current token is TK_NUM
@@ -205,7 +205,8 @@ Token *new_token(TokenKind kind, Token *cur, char *str) {
 }
 
 // Tokenize 'p' and returns new tokens
-Token *tokenize(char *p) {
+Token *tokenize() {
+  char *p = user_input;
   Token head;
   head.next = NULL;
   Token *cur = &head;
@@ -240,7 +241,7 @@ int main(int argc, char **argv) {
     error("%s: invalid number of arguments", argv[0]);
 
   user_input = argv[1];
-  token = tokenize(user_input);
+  token = tokenize();
   Node *node = expr();
 
   printf(".intel_syntax noprefix\n");
