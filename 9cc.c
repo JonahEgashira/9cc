@@ -64,6 +64,29 @@ Token *token;
 // Input program
 char *user_input;
 
+// Reports an error location and exit
+void error_at(char *loc, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+
+  int pos = loc - user_input;
+  fprintf(stderr, "%s\n", user_input);
+  fprintf(stderr, "%*s", pos, " ");  // print pos spaces
+  fprintf(stderr, "^ ");
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
+
+// Reports an error and exit
+void error(char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
+
 // Consumes the current token if it matches 'op'
 bool consume(char op) {
   if (token->kind != TK_RESERVED || token->str[0] != op)
@@ -77,6 +100,15 @@ void expect(char op) {
   if (token->kind != TK_RESERVED || token->str[0] != op)
     error_at(token->str, "expected '%c'", op);
   token = token->next;
+}
+
+// Ensure that the current token is TK_NUM
+int expect_number() {
+  if (token->kind != TK_NUM)
+    error_at(token->str, "expected a number");
+  int val = token->val;
+  token = token->next;
+  return val;
 }
 
 Node *expr();
@@ -157,38 +189,6 @@ void gen(Node *node) {
   }
 
   printf("  push rax\n");
-}
-
-// Reports an error location and exit
-void error_at(char *loc, char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-
-  int pos = loc - user_input;
-  fprintf(stderr, "%s\n", user_input);
-  fprintf(stderr, "%*s", pos, " ");  // print pos spaces
-  fprintf(stderr, "^ ");
-  vfprintf(stderr, fmt, ap);
-  fprintf(stderr, "\n");
-  exit(1);
-}
-
-// Reports an error and exit
-void error(char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  fprintf(stderr, "\n");
-  exit(1);
-}
-
-// Ensure that the current token is TK_NUM
-int expect_number() {
-  if (token->kind != TK_NUM)
-    error_at(token->str, "expected a number");
-  int val = token->val;
-  token = token->next;
-  return val;
 }
 
 bool at_eof() {
