@@ -32,47 +32,58 @@ struct Node {
   int val;        // if kind is ND_NUM
 };
 
-Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
+Node *new_node(NodeKind kind) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
+  return node;
+}
+
+Node *new_binary(NodeKind kind, Node *lhs, Node *rhs) {
+  Node *node = new_node(kind);
   node->lhs = lhs;
   node->rhs = rhs;
   return node;
 }
 
-Node *new_node_num(int val) {
-  Node *node = calloc(1, sizeof(Node));
-  node->kind = ND_NUM;
+Node *new_num(int val) {
+  Node *node = new_node(ND_NUM);
   node->val = val;
   return node;
 }
 
+Node *expr();
+Node *mul();
+Node *primary();
+
+// expr = mul ("+" mul | "-" mul)*
 Node *expr() {
   Node *node = mul();
 
   for (;;) {
     if (consume('+'))
-      node = new_node(ND_ADD, node, mul());
+      node = new_binary(ND_ADD, node, mul());
     else if (consume('-'))
-      node = new_node(ND_SUB, node, mul());
+      node = new_binary(ND_SUB, node, mul());
     else
       return node;
   }
 }
 
+// mul = primary("+" mul | "-" mul)*
 Node *mul() {
   Node *node = primary();
 
   for (;;) {
     if (consume('*'))
-      node = new_node(ND_MUL, node, primary());
+      node = new_binary(ND_MUL, node, primary());
     else if (consume('/'))
-      node = new_node(ND_DIV, node, primary());
+      node = new_binary(ND_DIV, node, primary());
     else
       return node;
   }
 }
 
+// primary = "(" expr ")" | num
 Node *primary() {
   // If next token is "(", it should be "(" expr ")"
   if (consume('(')) {
@@ -82,8 +93,12 @@ Node *primary() {
   }
 
   // If not, it should be value
-  return new_node_num(expect_number());
+  return new_num(expect_number());
 }
+
+//
+// Code generator
+//
 
 void gen(Node *node) {
   if (node->kind == ND_NUM) {
@@ -125,6 +140,8 @@ struct Token {
 
 // Current token
 Token *token;
+
+// Input program
 char *user_input;
 
 // Reports an error location and exit
@@ -161,7 +178,7 @@ bool consume(char op) {
 // Ensure that the current token is 'op'
 void expect(char op) {
   if (token->kind != TK_RESERVED || token->str[0] != op)
-    error(token->str, "expected '%c'", op);
+    error_at(token->str, "expected '%c'", op);
   token = token->next;
 }
 
@@ -200,7 +217,7 @@ Token *tokenize(char *p) {
       continue;
     }
 
-    if (*p == '+' || *p == '-') {
+    if (strchr("+-*/()", *p)) {
       cur = new_token(TK_RESERVED, cur, p++);
       continue;
     }
@@ -219,31 +236,22 @@ Token *tokenize(char *p) {
 }
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    fprintf(stderr, "incorrect argument\n");
-    return 1;
-  }
+  if (argc != 2)
+    error("%s: invalid number of arguments", argv[0]);
 
   user_input = argv[1];
   token = tokenize(user_input);
+  Node *node = expr();
 
   printf(".intel_syntax noprefix\n");
-  printf(".globl main\n");
+  printf(".global main\n");
   printf("main:\n");
 
-  // The first token must be a number
-  printf("  mov rax, %d\n", expect_number());
+  // Traverse the AST to emit assembly
+  gen(node);
 
-  while (!at_eof()) {
-    if (consume('+')) {
-      printf("  add rax, %d\n", expect_number());
-      continue;
-    }
-
-    expect('-');
-    printf("  sub rax, %d\n", expect_number());
-  }
-
+  // Load value at the top of the stack to rax
+  printf("  pop rax\n");
   printf("  ret\n");
   return 0;
 }
